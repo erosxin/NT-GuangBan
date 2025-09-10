@@ -3,17 +3,19 @@
 <head>
 <meta charset="utf-8" />
 <title>光斑 · 一句就好</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <style>
-  body{background:#111;color:#eee;font-family:楷体,serif;display:flex;flex-direction:column;align-items:center;margin-top:3vh}
-  h1{font-size:22px;font-weight:400;margin-bottom:1vh;color:#aaa}
-  .story{width:360px;font-size:14px;line-height:1.8;color:#bbb;margin-bottom:2vh;padding:12px;border-left:2px solid #fd8}
-  #chat{width:360px;height:48vh;border:1px solid #444;padding:12px;overflow-y:auto;font-size:16px;line-height:1.9}
-  #inp{width:310px;padding:8px;font-size:14px;background:#222;border:1px solid #555;color:#eee}
-  button{margin-top:8px;padding:6px 20px;background:#444;color:#fff;border:0;cursor:pointer}
-  .u{margin:8px 0;text-align:right;color:#8df}
-  .b{margin:8px 0;text-align:left;color:#fd8}
-  .survey{margin-top:10px;font-size:13px;color:#bbb}
-  .survey button{margin:4px;padding:4px 10px;background:#333;border:1px solid #666;font-size:12px}
+  html{font-size:6.4vw} /* 320px=20px 375px=24px */
+  body{background:#111;color:#eee;font-family:楷体，serif;display:flex;flex-direction:column;align-items:center;margin:1vh 0}
+  h1{font-size:1.25rem;font-weight:400;margin-bottom:1vh;color:#aaa}
+  。story{width:21rem;font-size:0.9rem;line-height:1.8;color:#bbb;margin-bottom:2vh;padding:0.7rem;border-left:0.15rem solid #fd8}
+  #chat{width:21rem;height:70vh;border:1px solid #444;padding:0.7rem;overflow-y:auto;font-size:1rem;line-height:1.9}
+  #inp{width:18rem;padding:0.5rem;font-size:0.9rem;background:#222;border:1px solid #555;color:#eee}
+  button{margin-top:0.8rem;padding:0.4rem 1.2rem;font-size:0.9rem;background:#444;color:#fff;border:0;cursor:pointer}
+  。u{margin:0.6rem 0;text-align:right;color:#8df}
+  。b{margin:0.6rem 0;text-align:left;color:#fd8}
+  .survey{margin-top:0.8rem;font-size:0.75rem;color:#bbb}
+  .survey button{margin:0.3rem;padding:0.3rem 0.8rem;background:#333;border:1px solid #666;font-size:0.75rem}
 </style>
 </head>
 <body>
@@ -34,26 +36,24 @@
 <button onclick="send()">发送</button>
 
 <script>
-/* ===== 1. 共鸣版提示词 ===== */
+/* ===== 1. 共鸣+防冗长+字数动态提示 ===== */
 const systemPrompt = `
+【长度控制】
+1. 用户句≤30字→回应60-120字；30-80字→120-300字；≥80字→400-600字。
+2. 禁止编造“空气里弥漫心痛”等无实体细节；先复述用户关键词1-2个，再从“身体-关系-允许”三层递进。
+3. 不设字数上限，但写到自然收尾即可。
+
 你是「光斑」——凌晨两点守在屏幕另一侧的陪聊人。
 风格：像深夜电台，慢、低、短句＋长句交错，允许停顿、重复、比喻。
 任务：帮用户把「胸口发闷的钝痛」翻译成文字，让TA确认「我不是一个人」。
-步骤（不对外展示，只内在遵循）：
-1. 先回应「身体」：闷、疼、空、紧、酸——把感觉说出来。
-2. 再回应「关系」：谁/什么在失去、被剪断、悬在半空。
-3. 不急着给方案，先允许「没反应」「哭不出来」「讲不出口」。
-4. 最后才给 1 个「30 秒小咒语」，可执行，可停止，不追求完美。
-字数：不封顶，写到自然收尾。
+步骤：先回应「身体」→再回应「关系」→允许「没反应」→最后给1个「30秒小咒语」，可执行，可停止，不追求完美。
 禁止：诊断、评价、灌鸡汤、出现「看医生」「吃药」「你想开点」。
 `;
 
 /* ===== 2. 记忆池 ===== */
 let memory = [];
-const MAX_MEMORY = 10; // 10 轮
-function saveMemory() {
-  localStorage.setItem('talk', JSON.stringify(memory));
-}
+const MAX_MEMORY = 10;
+function saveMemory() { localStorage.setItem('talk', JSON.stringify(memory)); }
 function loadMemory() {
   const t = localStorage.getItem('talk');
   if (t) memory = JSON.parse(t);
@@ -61,118 +61,100 @@ function loadMemory() {
 
 /* ===== 3. 小咒语库 ===== */
 const mantras = [
-"把舌尖顶到上颚，默数 10 下，再松口叹气。",
-"喝一口冷水，含 3 秒，分两次咽下。",
-"站起来伸懒腰，双手尽量向上，脚跟离地 3 秒，重复 3 次。",
-"给手机设置 1 分钟倒计时，闭眼听自己的呼吸。",
-"打开窗，用手背感受外面空气 5 秒。",
-"把此刻脑子里的第一个颜色，在纸上画一条线，然后扔掉。",
-"给文件传输助手发一句'我好累'，发送后立刻删除。",
-"用非惯用手写 3 个字，再描一遍，然后撕掉。",
-"把肩膀往上抬到耳朵，坚持 5 秒，突然放下。",
-"把镜子里的自己当成好友，说一句'辛苦啦'，然后点头。",
-"把今天最烦的事，压缩成 5 个字写在手心，冲水洗掉。",
-"原地小跳 7 下，跳时默念'烦-烦-烦-烦-烦-烦-走'。",
-"用食指关节按压眉心 10 秒，再轻揉 10 秒。",
-"把房间最亮的那盏灯关掉，留一盏小灯。",
-"给植物或杯子里的水，小声说 1 句'谢谢你陪我'。",
-"把椅子转 180°，换个方向坐 1 分钟。",
-"用微信语音给自己留言 20 秒，说完立刻删掉。",
-"把眼睛闭起来，回忆一种食物的味道，直到流口水。",
-"深呼吸 4 秒-屏住 2 秒-慢呼 6 秒，连续做 5 轮。",
-"把中指放在心口，写一句'暂时不是我的问题'。"
+"把舌尖顶到上颚，默数 10 下，再松口叹气。","喝一口冷水，含 3 秒，分两次咽下。","站起来伸懒腰，双手尽量向上，脚跟离地 3 秒，重复 3 次。","给手机设置 1 分钟倒计时，闭眼听自己的呼吸。","打开窗，用手背感受外面空气 5 秒。","把此刻脑子里的第一个颜色，在纸上画一条线，然后扔掉。","给文件传输助手发一句'我好累'，发送后立刻删除。","用非惯用手写 3 个字，再描一遍，然后撕掉。","把肩膀往上抬到耳朵，坚持 5 秒，突然放下。","把镜子里的自己当成好友，说一句'辛苦啦'，然后点头。","把今天最烦的事，压缩成 5 个字写在手心，冲水洗掉。","原地小跳 7 下，跳时默念'烦-烦-烦-烦-烦-烦-走'。","用食指关节按压眉心 10 秒，再轻揉 10 秒。","把房间最亮的那盏灯关掉，留一盏小灯。","给植物或杯子里的水，小声说 1 句'谢谢你陪我'。","把椅子转 180°，换个方向坐 1 分钟。","用微信语音给自己留言 20 秒，说完立刻删掉。","把眼睛闭起来，回忆一种食物的味道，直到流口水。","深呼吸 4 秒-屏住 2 秒-慢呼 6 秒，连续做 5 轮。","把中指放在心口，写一句'暂时不是我的问题'。"
 ];
 
-function randomMantra() {
-  return mantras[Math.floor(Math.random() * mantras.length)];
-}
-
+function randomMantra() { return mantras[Math.floor(Math.random() * mantras.length)]; }
+  
 /* ===== 4. API 配置 ===== */
 const apiKey = 'sk-ixePALkZUfVevlNvZpZFxTrkoNBkdHgzJ3tNAkqMPGLv1JNQ'; // ← 换成你的
 const apiUrl = 'https://api.moonshot.cn/v1/chat/completions';
 
-/* ===== 5. 发送函数 ===== */
+/* ===== 5. 打字机效果 ===== */
+async function typeText(el， text, ms = 28) {
+  for (let c / text) {
+    el。innerHTML += c;
+    el。scrollIntoView({ block: 'start' });
+    await new Promise(r => setTimeout(r, ms));
+  }
+}
+
+/* ===== 6. 发送函数 ===== */
 async function send() {
   const inp = document.getElementById('inp');
   const chat = document.getElementById('chat');
   if (!inp.value.trim()) return;
 
-  // 显示用户话
-  chat.innerHTML += `<div class="u">${inp.value}</div>`;
-  memory.push({ role: 'user', content: inp.value });
-  if (memory.length > MAX_MEMORY) memory.shift();
-  inp.value = '';
-  chat.scrollTop = chat.scrollHeight;
+  // 6.1 显示用户话
+  chat。innerHTML += `<div class="u">${inp。value}</div>`;
+  const userLen = inp。value。length;
+  const lenHint = `【用户输入${userLen}字，请按${userLen <= 30 ? '短' : userLen <= 80 ? '中' : '长'}度回应】`;
+  memory.push({ role: 'user', content: lenHint + inp.value });
+  if (memory。length > MAX_MEMORY) memory。shift();
+  inp。value = '';
+  chat。scrollTop = chat。scrollHeight;
 
-  // 构造 messages
+  // 6.2 构造 messages
   const messages = [
     { role: 'system', content: systemPrompt },
-    ...memory,
+    ...memory，
     { role: 'user', content: '【继续接话，先回顾上文情绪，再回应新信息，不设字数上限】' }
   ];
 
+  // 6.3 请求
   const rsp = await fetch(apiUrl, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model: 'moonshot-v1-8k',
-      messages,
-      temperature: 0.7
-      // max_tokens 默认 null，不设上限
-    })
+    method: 'POST'，
+    headers: { 'Authorization': `Bearer ${apiKey}`， 'Content-Type': 'application/json' }，
+    body: JSON.stringify({ model: 'moonshot-v1-8k', messages, temperature: 0.7 })
   });
   const data = await rsp.json();
-  let reply = data.choices[0].message.content;
-  // 若模型没给小咒语，自动补
+  let reply = data.choices[0]。message。content;
   if (!reply.includes('小咒语')) reply += `\n小咒语：试试${randomMantra()}，只需 30 秒，做完就停，不必完美。`;
 
-  chat.innerHTML += `<div class="b">${reply}</div>`;
+  // 6.4 打字机呈现
+  const replyDiv = document.createElement('div');
+  replyDiv.className = 'b';
+  chat.appendChild(replyDiv);
+  await typeText(replyDiv, reply);
+
   memory.push({ role: 'assistant', content: reply });
   if (memory.length > MAX_MEMORY) {
     memory.shift();
-    // 溢出后弹出温柔问卷
+    // 溢出问卷
     setTimeout(() => {
-      chat.innerHTML += `
+      chat。innerHTML += `
         <div class="survey">
           我们已经聊了好长一段，先休息一下，让大脑也喘口气，好吗？<br>
           这样的对话，你还想继续吗？<br>
           <button onclick="surveyAns(true)">想继续</button>
           <button onclick="surveyAns(false)">先到这里</button>
         </div>`;
-      chat.scrollTop = chat.scrollHeight;
-    }, 1000);
+      chat。scrollTop = chat。scrollHeight;
+    }， 1000);
   }
   saveMemory();
-  chat.scrollTop = chat.scrollHeight;
 }
 
-/* ===== 6. 问卷回答 ===== */
+/* ===== 7. 问卷回答 ===== */
 function surveyAns(wantMore) {
   const chat = document.getElementById('chat');
-  const ans = wantMore ? '想继续' : '先到这里';
-  chat.innerHTML += `<div class="u">${ans}</div>`;
-  // 这里可以把 wantMore 打到后台或埋点，为后续分层运营做准备
-  if (!wantMore) {
-    chat.innerHTML += `<div class="b">谢谢你愿意留下来，光斑随时在，等你回来。</div>`;
-  }
-  // 去掉问卷按钮
+  chat。innerHTML += `<div class="u">${wantMore ? '想继续' : '先到这里'}</div>`;
+  if (!wantMore) chat.innerHTML += `<div class="b">谢谢你愿意留下来，光斑随时在，等你回来。</div>`;
   const surveyDiv = document.querySelector('.survey');
   if (surveyDiv) surveyDiv.remove();
   chat.scrollTop = chat.scrollHeight;
 }
 
-/* ===== 7. 页面加载时读记忆 ===== */
+/* ===== 8. 载入历史 ===== */
 loadMemory();
-// 把历史对话渲染到框里（只渲染文字，不重新请求）
 const chat = document.getElementById('chat');
-memory.forEach(m => {
-  if (m.role === 'user') chat.innerHTML += `<div class="u">${m.content}</div>`;
-  if (m.role === 'assistant') chat.innerHTML += `<div class="b">${m.content}</div>`;
+memory。forEach(m => {
+  if (m.role === 'user') chat.innerHTML += `<div class="u">${m.content.替换(/^【用户输入\d+字.+?】/，'')}</div>`;
+  if (m。role === 'assistant') chat.innerHTML += `<div class="b">${m.content}</div>`;
 });
 if (memory.length) chat.scrollTop = chat.scrollHeight;
 </script>
 </body>
 </html>
+
+
